@@ -1,4 +1,4 @@
-Roadmap for roger-skyline-1 for Debian (Xubuntu), with inspiration from DMaxence's original guide.
+Roadmap for roger-skyline-1 for Debian (Xubuntu), with inspiration from DMaxence's and jmoussu's original guides.
 
 Man pages:
 - sudo
@@ -6,29 +6,41 @@ Man pages:
 - adduser
 - usermod
 - interfaces
-- ip
+- ifconfig
+- ip (a, route, ..)
 - ifup/ifdown/ifquery
 - iptables
 - dhclient
 
 Files:
+- /etc/netplan/\*.yaml
 - /etc/network/interfaces
 - /etc/init.d/cron
+
+Links:
+https://medium.com/platform-engineer/port-forwarding-for-ssh-http-on-virtualbox-459277a888be
+https://netplan.io/examples
+https://websiteforstudents.com/configure-static-ip-addresses-on-ubuntu-18-04-beta/
+https://blog.teamtreehouse.com/set-up-a-linux-server-on-virtualbox
+https://www.linux.com/learn/intro-to-linux/2018/9/how-use-netplan-network-configuration-tool-linux
+https://doc.fedora-fr.org/wiki/SSH_:_Authentification_par_cl%C3%A9
+https://www.aidoweb.com/tutoriaux/changer-port-serveur-ssh-645
 
 
 ## #1 : **Getting OS packages up-to-date**
 
-If sudo isn't already installed by default, run:
+If sudo isn't already installed by default (like in Debian server), run:
 
-`su root`
+`su root` or `su -`
 `apt install sudo`
+`exit`
 
 Note that if your version of Debian is old, apt-get rather than apt might be required.
 To put packages up to date, run:
 
 `sudo apt update`
 
-This queries the software repository database to see if current OS build is up to date. It creates a list of packages to be upgraded. Older version is apt-get.
+This queries the software repository database to see if current OS build is up to date. It creates a list of packages to be upgraded. Older version of `apt` is `apt-get`.
 
 `sudo apt upgrade`
 
@@ -54,47 +66,36 @@ Finish with:
 
 `su - [userlogin]`
 
-to log in as the newly created user.
+and enter the password for [userlogin] to log in as the newly created user.
 
 
 ## #3 : **Configuring the network interfaces**
 
-On most Debian (not distros with NetworkManager by default like Lubuntu), you'll find what you need in `/etc/network/interfaces`.
+On most Debian, you'll find what you need in `/etc/network/interfaces` or in more recent builds, `/etc/netplan/...`. To configure the network, we can edit /etc/network/interfaces and execute `/etc/init.d/networking restart` (or edit `/etc/netplan/....yaml` and execute `netplan apply`).
 
 If you change the line `iface eth0 inet dhcp` with `iface eth0 inet static`, it should disable the DHCP protocol (which sets up the interface information automatically).
 
-`ip link show` or `ip a` will give you information concerning available interfaces.
+`ip link show` or `ip a` will give you information concerning available interfaces (especially if ifconfig is unavailable).
 
 Then add the following lines to the `/etc/network/interfaces` file for the corresponding interface on the VM:
 
 ```
 auto enp0s3
 iface enp0s3 inet static
-->	address 192.168.1.1
-->	netmask 255.255.255.252
+address [machine_ip]
+netmask 255.255.255.252
 ```
 
-where "enp0s3" should be the appropriate interface (the second for the "ip a" command, or rather, the one with BROADCAST) on your VM. These lines create a home address for enp0s3, and divides the newly made host into a network with 4 sub IDs (your 252 in the netmask leaving only 2 free bits).
+where "enp0s3" should be the appropriate interface (the second for the "ip a" command, or rather, the one with BROADCAST) on your VM. [machine_ip] you can find with `ip a` on the host. These lines create a home address for enp0s3, and divides the newly made host into a network with 4 sub IDs (your 252 in the netmask leaving only 2 free bits, ie, a netmask of /30).
 
-Then add:
-
-```
-auto ???
-iface ??? inet dhcp ??//allowed?
-```
-
-to give Internet access to the VM.
-
-Restart the guest OS/VM.
-
-
+Restart networking with `/etc/init.d/networking restart` or `netplan apply`, or restart the guest OS/VM.
 
 
 ## #4 **Changing the SSH port**
 
 Open the file `/etc/ssh/ssh_config`.
 
-Modify `#Port 22` to the desired port, which...
+Modify `#Port 22` to the desired port, which should be of a number above 1024 and below 65535
 
 modifier la ligne `#PermitRootLogin [...]` vers `PermitRootLogin no`
 
