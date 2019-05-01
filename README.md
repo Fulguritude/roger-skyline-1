@@ -1,4 +1,4 @@
-Roadmap for roger-skyline-1 for Debian (Xubuntu), with inspiration from DMaxence's and jmoussu's original guides.
+Roadmap for roger-skyline-1 for Debian (various tests with Debian Server, Xubuntu and Lubuntu), with inspiration from DMaxence's, jmoussu's, and nvienot's original guides.
 
 Remember to take frequent snapshots of your VM, and don't be afraid to start over from scratch if need be. Note that for many distros, the `service restart` type commands can return OK and yet fail, so it's best practice to fully reboot at each config change in order to not confuse oneself thinking something has changed when it has not.
 
@@ -26,6 +26,7 @@ Files:
 - /etc/fail2ban/jail.local
 - /etc/default/portsentry
 - /etc/portsentry/filter.d/\*.conf
+- /etc/hosts.deny
 - /var/log/syslog
 - /var/log/\*
 
@@ -106,14 +107,14 @@ iface enp0s3 inet static
     gateway 10.1[floor_digit].254.254
 ```
 
-where "enp0s3" should be the appropriate interface (the second for the "ip a" command, or rather, the one with BROADCAST) on your VM. [machine_ip] you can find with `ip a` on the host. These lines create a home address for enp0s3, and divides the newly made host into a network with 4 sub IDs (your 252 in the netmask leaving only 2 free bits, ie, a netmask of /30).
+where "enp0s3" should be the appropriate interface (the second for the "ip a" command, or rather, the one with BROADCAST) on your VM. These lines create a home address for enp0s3, and divides the newly made host into a network with 4 sub IDs (your 252 is 0xFC in hex, meaning the netmask leaves only 2 free bits, ie, a netmask of /30, over an IPv4 address which is 32 bits).
 
-Restart networking with `/etc/init.d/networking restart` or `netplan apply`, if you're feeling lucky, or else just reboot the guest OS/VM with `sudo reboot`.
+Restart networking with `/etc/init.d/networking restart` or `netplan apply` if you're feeling lucky; or else just reboot the guest OS/VM with `sudo reboot`.
 
 
 ## #4 **Changing the SSH port**
 
-Open the file `/etc/ssh/ssh_config`.
+Open the file `/etc/ssh/sshd_config`.
 
 Modify `#Port 22` to the desired port 'MY_PORT', which should be a number above 1024 and below 65535. Uncomment the line.
 
@@ -127,21 +128,37 @@ Generate a **public key** on the host with `ssh-keygen` command.
 
 Copy the file `~/.ssh/id_rsa.pub` from the host to the location `~/.ssh/authorized_keys` in the VM user's home directory (`scp` is a bit of work but useful to know; or `ssh-copy-id -i ~/.ssh/id_rsa.pub [user]@[vm-IP] -p [MY_PORT]` which is)
 
+
 ## #5 **Firewall**
 
 Everything revolves around iptables. ufw is just a bunch of scripts to handle iptables better. See DMaxence for a good use of iptables. Or else, just look up ufw.
+
+```
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 443
+sudo ufw allow 80/tcp
+sudo ufw allow 25
+sudo ufw allow [MY_PORT]
+```
+
+Note that port 25 is SMTP, 80/tcp is HTTP (only for TCP not UDP), 443 is HTTPS, and MY_PORT is SSH. 
+
 
 ## #6 **DoS protection**
 
 ufw & fail2ban; test with pingflood, synflood, slowloris
 
+
 ## #7 **Port scan protection**
 
-portsentry
+portsentry, test from host with `nmap [vm-IP]` and `nmap -Pn [vm-IP]`. After each test (they are long), check the file `/etc/hosts.deny` for the host IP (it should have been added by portsentry), remove it, and reboot, or else you won't be able to ssh into the vm from the host.
+
 
 ## #8 **Stopping useless services**
 
 `sudo service --status-all`, get acquainted with all of them, especially the ones that you can't stop without breaking the machine. Normally, with a Debian Server install, you've got pretty much nothing to disable here.
+
 
 ## #9 **Automatically updating packages**
 
@@ -175,6 +192,7 @@ To which we add the lines:
 @reboot root /root/scripts/update_script.sh
 ```
 The crontab file explains its format in a large comment. The format is straightforward.
+
 
 ## #10 **Making a script to warn of all crontab edits**
 
